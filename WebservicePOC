@@ -1,0 +1,112 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml;
+using System.Xml.Linq;
+
+
+namespace WebservicePOC
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+
+           string requestXml = System.IO.File.ReadAllText("C:\\Users\\zku87ct\\Documents\\Automation\\POCrequest.xml");
+
+           string strTraceId = RandomString();
+
+           int startingIndex = requestXml.IndexOf("<traceId>");
+
+           string strModifiedIndex = requestXml.Substring(startingIndex + 9, 20);
+
+           requestXml = requestXml.Replace(strModifiedIndex, strTraceId);
+
+           postXMLData("http://10.106.64.39:7865", requestXml );
+        }
+
+
+
+        public static string RandomString()
+
+        {
+            Random random = new Random();
+
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+            string strTraceId = new string(Enumerable.Repeat(chars, 20).Select(s => s[random.Next(s.Length)]).ToArray());
+
+            return strTraceId;
+        }
+
+
+       
+        public static string postXMLData(string destinationUrl, string requestXml)
+        {
+            try
+            {
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(destinationUrl);
+                byte[] bytes;
+                bytes = System.Text.UTF8Encoding.UTF8.GetBytes(requestXml);
+                // System.Text.Encoding.ASCII.GetBytes(requestXml);
+                request.ContentType = "text/xml; encoding='utf-8'";
+                request.ContentLength = bytes.Length;
+                request.Method = "POST";
+                Stream requestStream = request.GetRequestStream();
+                requestStream.Write(bytes, 0, bytes.Length);
+                requestStream.Close();
+                HttpWebResponse response;
+                response = (HttpWebResponse)request.GetResponse();
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    Stream responseStream = response.GetResponseStream();
+                    string responseStr = new StreamReader(responseStream).ReadToEnd();
+                    WriteLog(responseStr, @"C:\Users\zku87ct\Documents\WebServicesPOC\WebServicesPOCresponses.txt");
+                    return responseStr;
+                }
+                return "";
+            }
+
+            catch (Exception exception2)
+            {
+                string strError = exception2.ToString();
+                WriteLog(exception2.ToString(), @"C:\Users\zku87ct\Documents\WebServicesPOC\Errorlog.txt");
+                return ""; 
+            }
+
+        }
+
+
+
+        public static void WriteLog(string strLogText, string strFileName)
+        {
+            try
+            {
+                if (!File.Exists(strFileName))
+                {
+                    File.Create(strFileName).Close();
+                }
+
+                using (StreamWriter writer = File.AppendText(strFileName))
+                {
+                    writer.WriteLine("{0}", DateTime.Now.ToString());
+                    writer.WriteLine(strLogText);
+                    writer.WriteLine("__________________________");
+                    writer.Flush();
+                    writer.Close();
+                    writer.Dispose();
+                }
+
+            }
+            catch (Exception exception1)
+            {
+                string strError = exception1.ToString();
+            }
+        }
+    }
+
+}
